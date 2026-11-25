@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Career Town 2.5D | What do you want to be?</title>
+<style>
+*{box-sizing:border-box;user-select:none;-webkit-user-select:none}
+body{margin:0;padding:6px;background:#0f172a;font-family:'Pretendard',system-ui,-apple-system,"Noto Sans KR",sans-serif;color:#1e293b}
+/* 직전 버전(680px)보다 세로만 살짝 줄인 600px 와이드 화면 */
+#app{width:100%;max-width:1300px;height:600px;margin:0 auto;background:#1e293b;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.45);border:2px solid #334155}
+header{height:50px;flex-shrink:0;background:linear-gradient(90deg,#1e3a8a,#0f766e);color:#fff;padding:0 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #0f172a}
+header h1{font-size:18px;margin:0;display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:-0.3px}
+header small{font-size:12px;color:#a7f3d0;font-weight:600;margin-left:8px}
+.header-right{display:flex;align-items:center;gap:8px}
+.badge{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.35);padding:5px 13px;border-radius:99px;font-size:12.5px;font-weight:800}
+.dl-btn{background:#facc15;color:#0f172a;border:none;padding:6px 12px;border-radius:99px;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.25)}
+.dl-btn:hover{background:#fde047}
+
+.workspace{flex:1;display:grid;grid-template-columns:1fr 265px;min-height:0;background:#0f172a}
+#viewport{position:relative;width:100%;height:100%;background:#1e293b;overflow:hidden;touch-action:none}
+#gameCanvas{width:100%;height:100%;display:block}
+
+/* HUD & Floating Buttons */
+.hud-top{position:absolute;top:12px;left:12px;background:rgba(15,23,42,0.85);backdrop-filter:blur(6px);color:#fff;padding:9px 14px;border-radius:13px;border:1px solid rgba(255,255,255,0.2);pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,0.3);z-index:10}
+.hud-top b{display:block;font-size:15px;color:#38bdf8;margin-bottom:2px}
+.hud-top span{font-size:11.5px;color:#e2e8f0}
+.hud-right{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:10}
+.btn{font:inherit;cursor:pointer;border:1px solid #cbd5e1;border-radius:10px;padding:7px 13px;background:#ffffff;color:#0f172a;font-weight:800;font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.18);transition:all 0.15s}
+.btn:hover{background:#f1f5f9;transform:translateY(-1px)}
+.btn:active{transform:scale(0.96)}
+.btn-green{background:linear-gradient(180deg,#22c55e,#16a34a);color:#fff;border-color:#15803d}
+.btn-green:hover{background:linear-gradient(180deg,#16a34a,#15803d)}
+
+/* Action Button */
+#actionBtn{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);padding:12px 26px;font-size:15px;border-radius:99px;background:linear-gradient(180deg,#facc15,#eab308);color:#0f172a;border:3px solid #fff;font-weight:900;box-shadow:0 8px 25px rgba(0,0,0,0.4);display:none;z-index:15;cursor:pointer;animation:bounceBtn 1.2s infinite}
+@keyframes bounceBtn{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
+
+/* Virtual Joystick */
+#joyZone{position:absolute;left:18px;bottom:18px;width:104px;height:104px;border-radius:50%;background:rgba(15,23,42,0.5);border:3px solid rgba(255,255,255,0.75);box-shadow:0 6px 18px rgba(0,0,0,0.35);touch-action:none;z-index:14}
+#joyStick{position:absolute;left:50%;top:50%;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffffff,#cbd5e1);transform:translate(-50%,-50%);box-shadow:0 4px 10px rgba(0,0,0,0.4);pointer-events:none}
+
+/* RPG Dialog Modal */
+#dialog{position:absolute;bottom:14px;left:140px;right:14px;background:rgba(255,255,255,0.97);border:3px solid #0f766e;border-radius:15px;padding:14px 16px;display:none;z-index:20;box-shadow:0 14px 35px rgba(0,0,0,0.45)}
+#dialog.open{display:block;animation:popIn 0.2s cubic-bezier(0.16,1,0.3,1)}
+@keyframes popIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.d-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.d-title{font-size:17px;font-weight:900;color:#0f172a}
+.d-sub{font-size:11.5px;color:#0f766e;font-weight:700;margin-left:8px}
+.speech-box{background:#f0fdf4;border:2px solid #bbf7d0;border-radius:11px;padding:11px 15px;margin-bottom:8px}
+.en-line{font-size:18px;font-weight:850;color:#0f172a;line-height:1.4}
+.ko-line{font-size:13.5px;font-weight:700;color:#475569;margin-top:5px}
+.d-actions{display:flex;gap:8px}
+.d-actions button{flex:1;padding:9px;font-size:13px}
+#quizBox{display:none;background:#eff6ff;border:2px solid #93c5fd;border-radius:11px;padding:10px;margin-top:8px}
+#quizBox.open{display:block}
+#quizQ{font-weight:800;font-size:14.5px;color:#1e3a8a;margin:0 0 6px}
+#quizOpts{display:flex;gap:8px}
+#quizOpts button{flex:1}
+#quizMsg{margin:6px 0 0;font-size:12.5px;font-weight:800}
+
+/* Right Directory Sidebar */
+aside{background:#f8fafc;border-left:2px solid #cbd5e1;padding:11px;display:flex;flex-direction:column;overflow-y:auto}
+aside h2{font-size:13.5px;font-weight:800;margin:0 0 7px;color:#0f172a}
+.job-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.job-grid button{font-size:11px;padding:6px 5px;border-radius:7px;border:1px solid #cbd5e1;background:#fff;text-align:left;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all 0.12s}
+.job-grid button:hover{background:#e0f2fe;border-color:#38bdf8}
+.job-grid button.done{background:#dcfce7;border-color:#22c55e;color:#15803d}
+.help-card{margin-top:8px;background:#e2e8f0;border-radius:9px;padding:9px;font-size:11px;line-height:1.5;color:#334155}
+
+@media(max-width:900px){
+ #app{height:92vh}
+ .workspace{grid-template-columns:1fr;grid-template-rows:1fr 160px}
+ aside{border-left:none;border-top:2px solid #cbd5e1}
+ .job-grid{grid-template-columns:repeat(4,1fr)}
+ #dialog{left:14px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <header>
+  <h1>🗺️ Career Town 2.5D <small>What do you want to be? · 초등 5학년 직업 체험 월드</small></h1>
+  <div class="header-right">
+   <button class="dl-btn" id="downloadBtn" title="학생 배포용 HTML 파일 다운로드">💾 게임 파일 저장</button>
+   <div class="badge" id="progressBadge">0 / 15 체험 완료</div>
+  </div>
+ </header>
+ <div class="workspace">
+  <div id="viewport">
+   <canvas id="gameCanvas"></canvas>
+   <div class="hud-top">
+    <b id="hudTitle">🌲 CAREER TOWN</b>
+    <span id="hudDesc">비행기, 경기장, 학교 등 원하는 직업 장소로 걸어가 보세요!</span>
+   </div>
+   <div class="hud-right">
+    <button class="btn" id="townBtn">🏘️ 타운 광장으로</button>
+    <button class="btn" id="soundBtn">🔊 효과음 켜기</button>
+   </div>
+   <div id="joyZone" title="드래그하여 이동"><div id="joyStick"></div></div>
+   <button id="actionBtn">🚪 입장하기 (E)</button>
+
+   <div id="dialog">
+    <div class="d-head">
+     <div><span class="d-title" id="dTitle"></span><span class="d-sub" id="dPlace"></span></div>
+     <button class="btn" id="closeDialogBtn" style="padding:4px 10px">✕ 닫기</button>
+    </div>
+    <div class="speech-box">
+     <div class="en-line" id="enText"></div>
+     <div class="ko-line" id="koText" hidden></div>
+    </div>
+    <div class="d-actions">
+     <button class="btn" id="koBtn">🇰🇷 한국어 뜻 보기</button>
+     <button class="btn" id="ttsBtn">🔈 영어 발음 듣기</button>
+     <button class="btn btn-green" id="nextLineBtn">다음 문장 →</button>
+    </div>
+    <div id="quizBox">
+     <p id="quizQ"></p>
+     <div id="quizOpts"></div>
+     <p id="quizMsg"></p>
+    </div>
+   </div>
+  </div>
+
+  <aside>
+   <h2>📍 15개 직업 바로 이동 (텔레포트)</h2>
+   <div class="job-grid" id="jobList"></div>
+   <div class="help-card">
+    <b>🎮 조작 안내</b><br>
+    • <b>이동:</b> 키보드 <b>WASD / 방향키</b> 또는 좌측 하단 <b>조이스틱</b> 드래그<br>
+    • <b>입장/대화:</b> 건물 입구나 테이블 앞에서 뜨는 노란색 <b>[액션 버튼]</b> 클릭 (또는 <b>E키</b>)
+   </div>
+  </aside>
+ </div>
+</div>
+
+<script>
+const jobs = [
+ {name:"YouTuber",emoji:"📹",place:"Creator Studio",shirt:"#9333ea",hair:"#1e1b4b",hat:"headset",lines:[["Hello! I am a YouTuber.","안녕하세요! 저는 유튜버입니다."],["I make fun videos in my studio.","저는 스튜디오에서 재미있는 영상을 만듭니다."],["I edit videos on my computer.","저는 컴퓨터로 영상을 편집합니다."],["I talk to my viewers every day!","저는 매일 시청자들과 소통합니다!"]],q:"What does a YouTuber make?",a:["Videos","Shoes","Cars"],c:0},
+ {name:"Soccer Player",emoji:"⚽",place:"Soccer Stadium",shirt:"#16a34a",hair:"#451a03",hat:"band",lines:[["Hi! I am a soccer player.","안녕하세요! 저는 축구 선수입니다."],["I play soccer on a big field.","저는 넓은 경기장에서 축구를 합니다."],["I run fast and pass the ball.","저는 빠르게 달리고 공을 패스합니다."],["I want to score a goal!","저는 멋진 골을 넣고 싶습니다!"]],q:"Where does a soccer player play?",a:["In a kitchen","On a soccer field","In a hospital"],c:1},
+ {name:"Teacher",emoji:"📚",place:"School Classroom",shirt:"#0284c7",hair:"#3b2e25",hat:"glasses",lines:[["Hello! I am a teacher.","안녕하세요! 저는 선생님입니다."],["I work at an elementary school.","저는 초등학교에서 일합니다."],["I teach students at the chalkboard.","저는 칠판 앞에서 학생들을 가르칩니다."],["I help my students learn new things.","저는 학생들이 새로운 것을 배우도록 돕습니다."]],q:"What does a teacher do?",a:["Teaches students","Flies a plane","Cooks food"],c:0},
+ {name:"Violinist",emoji:"🎻",place:"Concert Hall",shirt:"#be123c",hair:"#1e293b",hat:"ribbon",lines:[["Hello! I am a violinist.","안녕하세요! 저는 바이올리니스트입니다."],["I play the violin on the stage.","저는 무대 위에서 바이올린을 연주합니다."],["I practice music every day.","저는 매일 음악을 연습합니다."],["I play beautiful music for people.","저는 사람들에게 아름다운 음악을 들려줍니다."]],q:"What does a violinist play?",a:["The piano","The guitar","The violin"],c:2},
+ {name:"Scientist",emoji:"🔬",place:"Science Research Lab",shirt:"#ffffff",hair:"#0f172a",hat:"goggles",lines:[["Hi! I am a scientist.","안녕하세요! 저는 과학자입니다."],["I work in a science lab.","저는 과학 실험실에서 일합니다."],["I do experiments with beakers.","저는 비커를 가지고 실험을 합니다."],["I ask questions and find answers.","저는 질문하고 새로운 답을 찾습니다."]],q:"Where does a scientist work?",a:["In a lab","On a bus","In a stadium"],c:0},
+ {name:"Doctor",emoji:"🩺",place:"City Hospital",shirt:"#ffffff",hair:"#451a03",hat:"mirror",lines:[["Hello! I am a doctor.","안녕하세요! 저는 의사입니다."],["I work at a hospital.","저는 병원에서 일합니다."],["I take care of sick patients.","저는 아픈 환자들을 돌봅니다."],["I check patients and give them medicine.","저는 환자를 진찰하고 약을 처방합니다."]],q:"Who does a doctor help?",a:["Animals only","Sick people","Pilots"],c:1},
+ {name:"Chef",emoji:"👨‍🍳",place:"Gourmet Restaurant",shirt:"#ffffff",hair:"#451a03",hat:"chef",lines:[["Hello! I am a chef.","안녕하세요! 저는 요리사입니다."],["I work in a restaurant kitchen.","저는 식당 주방에서 일합니다."],["I cook delicious food on the stove.","저는 가스레인지 위에서 맛있는 음식을 요리합니다."],["I make happy meals for people.","저는 사람들을 위해 행복한 식사를 만듭니다."]],q:"What does a chef do?",a:["Cooks food","Takes photos","Teaches English"],c:0},
+ {name:"Game Developer",emoji:"🎮",place:"Game Dev Center",shirt:"#4f46e5",hair:"#1e1b4b",hat:"headset",lines:[["Hi! I am a game developer.","안녕하세요! 저는 게임 개발자입니다."],["I make fun computer games.","저는 재미있는 컴퓨터 게임을 만듭니다."],["I write code on my monitors.","저는 모니터를 보며 코드를 작성합니다."],["I design characters and game worlds.","저는 캐릭터와 게임 월드를 디자인합니다."]],q:"What does a game developer make?",a:["Games","Cakes","Clothes"],c:0},
+ {name:"Designer",emoji:"🎨",place:"Art & Design Studio",shirt:"#db2777",hair:"#b45309",hat:"beret",lines:[["Hello! I am a designer.","안녕하세요! 저는 디자이너입니다."],["I draw pictures on a canvas.","저는 캔버스에 그림을 그립니다."],["I use many colors and shapes.","저는 다양한 색깔과 모양을 사용합니다."],["I make pretty clothes and posters.","저는 멋진 옷과 포스터를 디자인합니다."]],q:"What does a designer use?",a:["A stethoscope","Colors and shapes","A plane"],c:1},
+ {name:"Astronaut",emoji:"🚀",place:"Space Launch Center",shirt:"#f8fafc",hair:"#1e293b",hat:"helmet",lines:[["Hello! I am an astronaut.","안녕하세요! 저는 우주 비행사입니다."],["I travel to outer space.","저는 우주로 여행을 떠납니다."],["I float in the space station.","저는 무중력 우주 정거장에서 둥둥 떠다닙니다."],["I look at Earth through the window.","저는 창문을 통해 아름다운 지구를 바라봅니다."]],q:"Where does an astronaut travel?",a:["To space","To a kitchen","To a school"],c:0},
+ {name:"Police Officer",emoji:"👮",place:"Police Headquarters",shirt:"#1e3a8a",hair:"#0f172a",hat:"police",lines:[["Hello! I am a police officer.","안녕하세요! 저는 경찰관입니다."],["I work at a police station.","저는 경찰서에서 일합니다."],["I patrol our town with a police car.","저는 경찰차를 타고 우리 마을을 순찰합니다."],["I help people and keep them safe.","저는 사람들을 돕고 안전하게 지킵니다."]],q:"What does a police officer do?",a:["Makes videos","Keeps people safe","Plays the violin"],c:1},
+ {name:"Veterinarian",emoji:"🐾",place:"Animal Medical Center",shirt:"#10b981",hair:"#78350f",hat:"ears",lines:[["Hello! I am a veterinarian.","안녕하세요! 저는 수의사입니다."],["I work at an animal hospital.","저는 동물병원에서 일합니다."],["I examine sick dogs on the table.","저는 진료대 위에서 아픈 강아지를 진찰합니다."],["I love animals and make them healthy.","저는 동물을 사랑하고 건강하게 치료해 줍니다."]],q:"Who does a veterinarian help?",a:["Sick animals","Soccer players","Students"],c:0},
+ {name:"Pilot",emoji:"✈️",place:"Airport Runway & Jet",shirt:"#0f172a",hair:"#1e293b",hat:"pilot",lines:[["Hello! I am a pilot.","안녕하세요! 저는 비행기 조종사입니다."],["I sit in the airplane cockpit.","저는 비행기 조종석에 앉아 있습니다."],["I hold the control yoke and fly the plane.","저는 조종간을 잡고 하늘 위로 비행기를 날립니다."],["I take passengers to many countries.","저는 승객들을 여러 나라로 안전하게 데려다줍니다."]],q:"What does a pilot fly?",a:["A bicycle","A boat","An airplane"],c:2},
+ {name:"Photographer",emoji:"📷",place:"Photo Studio",shirt:"#334155",hair:"#78350f",hat:"beret",lines:[["Hello! I am a photographer.","안녕하세요! 저는 사진작가입니다."],["I work in a bright photo studio.","저는 밝은 조명이 있는 사진관에서 일합니다."],["I look through the camera and take pictures.","저는 카메라를 보고 모델의 사진을 찍습니다."],["Smile! Cheese!","웃으세요! 치즈!"]],q:"What does a photographer use?",a:["A camera","A violin","A microscope"],c:0},
+ {name:"Singer",emoji:"🎤",place:"Pop Concert Dome",shirt:"#c026d3",hair:"#f43f5e",hat:"star",lines:[["Hello! I am a singer.","안녕하세요! 저는 가수입니다."],["I stand on the shining concert stage.","저는 화려한 콘서트 무대 위에 섭니다."],["I hold a microphone and sing songs.","저는 마이크를 잡고 노래를 부릅니다."],["I sing and dance for my fans!","저는 팬들을 위해 노래하고 춤을 춥니다!"]],q:"What does a singer do?",a:["Takes care of animals","Sings songs","Flies airplanes"],c:1}
+];
+
+const $ = s => document.querySelector(s);
+const canvas = $('#gameCanvas'), ctx = canvas.getContext('2d');
+let mode = 'hub', active = -1, line = 0, showKo = false, quizDone = false, sound = false, audioCtx = null;
+let done = new Set(), keys = {}, joyX = 0, joyY = 0, joyActive = false;
+let time = 0, lastTime = performance.now(), pendingAction = null;
+
+const HUB_W = 2500, HUB_H = 1650, ROOM_W = 920, ROOM_H = 540;
+const player = { x: 1250, y: 860, dir: 'down', walk: 0, speed: 300 };
+let npc = { x: 460, y: 205 };
+let zones = [], colliders = [];
+
+function playBeep(freq=540, dur=0.08){
+ if(!sound) return;
+ try{
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.frequency.value = freq; g.gain.value = 0.08;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+ }catch(e){}
+}
+
+function initHub(){
+ mode = 'hub'; active = -1; zones = []; colliders = [];
+ for(let i=0; i<15; i++){
+  const col = i % 5, row = Math.floor(i / 5);
+  const cx = 290 + col * 470, cy = 240 + row * 520;
+  zones.push({ id: i, cx, cy, doorX: cx, doorY: cy + 125 });
+  colliders.push({ x: cx - 125, y: cy - 95, w: 250, h: 185 });
+ }
+ $('#hudTitle').textContent = '🌲 CAREER TOWN (타운 광장)';
+ $('#hudDesc').textContent = '원하는 직업 건물 앞의 [액션 버튼]으로 입장하세요!';
+ $('#dialog').classList.remove('open');
+}
+
+function enterRoom(id){
+ playBeep(680, 0.1);
+ mode = 'room'; active = id; line = 0; showKo = false; quizDone = false;
+ player.x = ROOM_W / 2; player.y = ROOM_H - 72; player.dir = 'up';
+ colliders = [{x:0, y:0, w:ROOM_W, h:115}, {x:0, y:0, w:32, h:ROOM_H}, {x:ROOM_W-32, y:0, w:32, h:ROOM_H}];
+ npc = { x: ROOM_W / 2, y: 205 };
+
+ switch(id){
+  case 0: // YouTuber Studio
+   npc.x = 460; npc.y = 210;
+   colliders.push({x:290, y:235, w:340, h:36}, {x:140, y:320, w:75, h:85});
+   break;
+  case 1: // Soccer Stadium
+   npc.x = 460; npc.y = 225;
+   break;
+  case 2: // Teacher Classroom
+   npc.x = 365; npc.y = 190;
+   for(let r=0;r<2;r++) for(let c=0;c<3;c++) colliders.push({x:135+c*240, y:265+r*105, w:140, h:45});
+   break;
+  case 3: // Violinist Concert Hall
+   npc.x = 500; npc.y = 205;
+   colliders.push({x:195, y:145, w:140, h:85});
+   for(let c=0;c<3;c++) colliders.push({x:155+c*230, y:340, w:140, h:38});
+   break;
+  case 4: // Scientist Lab
+   npc.x = 460; npc.y = 205;
+   colliders.push({x:270, y:235, w:380, h:38}, {x:50, y:145, w:100, h:220}, {x:770, y:145, w:100, h:220});
+   break;
+  case 5: // Doctor Hospital
+   npc.x = 460; npc.y = 205;
+   colliders.push({x:110, y:195, w:150, h:185}, {x:660, y:195, w:150, h:185}, {x:360, y:235, w:200, h:38});
+   break;
+  case 6: // Chef Restaurant Kitchen (조리대 두께를 줄이고 양옆 길을 넓혀 자유 이동 + 테이블 앞 즉시 대화!)
+   npc.x = 460; npc.y = 220;
+   colliders.push({x:260, y:255, w:400, h:32}, {x:740, y:125, w:135, h:280});
+   break;
+  case 7: // Game Dev Studio
+   npc.x = 565; npc.y = 205;
+   colliders.push({x:85, y:205, w:185, h:85}, {x:400, y:245, w:365, h:135});
+   break;
+  case 8: // Designer Atelier
+   npc.x = 460; npc.y = 215;
+   colliders.push({x:280, y:250, w:360, h:38}, {x:80, y:170, w:125, h:195}, {x:715, y:170, w:125, h:195});
+   break;
+  case 9: // Astronaut Space Station
+   npc.x = 460; npc.y = 210;
+   colliders.push({x:65, y:160, w:140, h:220}, {x:715, y:160, w:140, h:220}, {x:310, y:245, w:300, h:38});
+   break;
+  case 10: // Police Station
+   npc.x = 495; npc.y = 205;
+   colliders.push({x:50, y:120, w:245, h:165}, {x:410, y:230, w:170, h:38}, {x:680, y:200, w:155, h:205});
+   break;
+  case 11: // Veterinarian Clinic
+   npc.x = 460; npc.y = 205;
+   colliders.push({x:310, y:235, w:300, h:40}, {x:60, y:140, w:135, h:220}, {x:725, y:140, w:135, h:220});
+   break;
+  case 12: // Pilot Cockpit & Cabin
+   npc.x = 460; npc.y = 190;
+   colliders.push({x:60, y:245, w:240, h:205}, {x:620, y:245, w:240, h:205});
+   break;
+  case 13: // Photographer Studio
+   npc.x = 590; npc.y = 255;
+   colliders.push({x:500, y:235, w:58, h:58});
+   break;
+  case 14: // Singer Concert Dome
+   npc.x = 460; npc.y = 200;
+   colliders.push({x:115, y:130, w:90, h:140}, {x:715, y:130, w:90, h:140});
+   break;
+ }
+
+ const j = jobs[id];
+ $('#hudTitle').textContent = `${j.emoji} ${j.name} — ${j.place}`;
+ $('#hudDesc').textContent = '실제 작업 공간처럼 꾸며진 내부를 구경하고 직업인과 대화해 보세요!';
+ $('#dialog').classList.remove('open');
+}
+
+function exitToHub(){
+ if(mode !== 'room') return;
+ playBeep(440, 0.1);
+ const prev = active; initHub();
+ if(prev >= 0 && zones[prev]){
+  player.x = zones[prev].doorX; player.y = zones[prev].doorY + 42; player.dir = 'down';
+ }
+}
+
+function hitsCollider(px, py, r=16){
+ for(const c of colliders){
+  if(px + r > c.x && px - r < c.x + c.w && py + r > c.y && py - r < c.y + c.h) return true;
+ }
+ return false;
+}
+
+function drawChibi(x, y, opts){
+ const { shirt='#3b82f6', hair='#1e293b', label='', isNpc=false, hat='', walk=0, sit=false } = opts;
+ ctx.save();
+ const bob = sit ? 0 : (isNpc ? Math.sin(time*4)*2.5 : Math.abs(Math.sin(walk))*4);
+ const swing = sit ? 0 : (isNpc ? Math.sin(time*3)*3 : Math.sin(walk)*7);
+
+ ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(x, y+21, 17, 7.5, 0, 0, Math.PI*2); ctx.fill();
+
+ if(!sit){
+  ctx.fillStyle = '#1e293b';
+  ctx.beginPath(); ctx.roundRect(x-11, y+4+swing*0.5, 9, 14, 4); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(x+2, y+4-swing*0.5, 9, 14, 4); ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(x-11, y+14+swing*0.5, 9, 4); ctx.fillRect(x+2, y+14-swing*0.5, 9, 4);
+ }
+ ctx.fillStyle = shirt; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5;
+ ctx.beginPath(); ctx.roundRect(x-16, y-18-bob, 32, 25, 10); ctx.fill(); ctx.stroke();
+
+ if(shirt === '#ffffff' && hat === 'chef'){
+  ctx.fillStyle = '#0f172a';
+  [-5, 5].forEach(bx => { [-10, -3, 4].forEach(by => { ctx.beginPath(); ctx.arc(x+bx, y+by-bob, 2, 0, Math.PI*2); ctx.fill(); }); });
+ } else if(shirt === '#ffffff'){
+  ctx.fillStyle = '#38bdf8'; ctx.fillRect(x-4, y-17-bob, 8, 21);
+ } else if(hat === 'glasses'){
+  ctx.fillStyle = '#ef4444'; ctx.fillRect(x-2.5, y-15-bob, 5, 14);
+ } else if(hat === 'police' || hat === 'pilot'){
+  ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(x+7, y-8-bob, 4, 0, Math.PI*2); ctx.fill();
+ }
+
+ ctx.fillStyle = shirt;
+ ctx.beginPath(); ctx.roundRect(x-23, y-15-bob-swing*0.5, 8, 17, 4); ctx.fill(); ctx.stroke();
+ ctx.beginPath(); ctx.roundRect(x+15, y-15-bob+swing*0.5, 8, 17, 4); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = '#fde68a';
+ ctx.beginPath(); ctx.arc(x-19, y+2-bob-swing*0.5, 4.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+ ctx.beginPath(); ctx.arc(x+19, y+2-bob+swing*0.5, 4.2, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+ ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(x, y-33-bob, 17.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = 'rgba(244,63,94,0.45)';
+ ctx.beginPath(); ctx.ellipse(x-10, y-29-bob, 4, 2.4, 0, 0, Math.PI*2); ctx.fill();
+ ctx.beginPath(); ctx.ellipse(x+10, y-29-bob, 4, 2.4, 0, 0, Math.PI*2); ctx.fill();
+ ctx.fillStyle = '#0f172a';
+ ctx.beginPath(); ctx.arc(x-6.5, y-33-bob, 3.1, 0, Math.PI*2); ctx.arc(x+6.5, y-33-bob, 3.1, 0, Math.PI*2); ctx.fill();
+ ctx.fillStyle = '#ffffff';
+ ctx.beginPath(); ctx.arc(x-7.5, y-34.2-bob, 1.3, 0, Math.PI*2); ctx.arc(x+5.5, y-34.2-bob, 1.3, 0, Math.PI*2); ctx.fill();
+ ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2;
+ ctx.beginPath(); ctx.arc(x, y-28-bob, 3.4, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+
+ ctx.fillStyle = hair; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.2;
+ ctx.beginPath(); ctx.arc(x, y-36-bob, 18, Math.PI*0.92, Math.PI*2.08); ctx.fill(); ctx.stroke();
+
+ if(hat === 'chef'){
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(x-8, y-57-bob, 8.5, 0, Math.PI*2); ctx.arc(x, y-60-bob, 9.5, 0, Math.PI*2); ctx.arc(x+8, y-57-bob, 8.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(x-13, y-55-bob, 26, 12, 4); ctx.fill(); ctx.stroke();
+ } else if(hat === 'police' || hat === 'pilot'){
+  ctx.fillStyle = hat==='police' ? '#1e3a8a' : '#0f172a'; ctx.beginPath(); ctx.roundRect(x-17, y-56-bob, 34, 10.5, 4); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#facc15'; ctx.fillRect(x-5, y-53-bob, 10, 4);
+ } else if(hat === 'helmet'){
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3; ctx.fillStyle = 'rgba(186,230,253,0.28)';
+  ctx.beginPath(); ctx.arc(x, y-33-bob, 21.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+ } else if(hat === 'glasses'){
+  ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.strokeRect(x-12, y-37-bob, 9, 7); ctx.strokeRect(x+3, y-37-bob, 9, 7);
+ } else if(hat === 'headset'){
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x, y-35-bob, 19.5, Math.PI*0.85, Math.PI*0.15); ctx.stroke();
+  ctx.fillStyle = '#0284c7'; ctx.beginPath(); ctx.roundRect(x-21, y-39-bob, 5.5, 11.5, 3); ctx.roundRect(x+15.5, y-39-bob, 5.5, 11.5, 3); ctx.fill();
+ } else if(hat === 'beret'){
+  ctx.fillStyle = '#be185d'; ctx.beginPath(); ctx.ellipse(x+3, y-51-bob, 16, 6.5, -0.15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+ } else if(hat === 'studentCap'){
+  ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(x, y-39-bob, 17.5, Math.PI, Math.PI*2); ctx.fill(); ctx.stroke();
+ }
+
+ if(label){
+  ctx.font = '800 12px "Pretendard", sans-serif'; const tw = ctx.measureText(label).width + 18;
+  ctx.fillStyle = isNpc ? '#0f766e' : '#1d4ed8'; ctx.beginPath(); ctx.roundRect(x - tw/2, y - 78 - bob, tw, 21, 10.5); ctx.fill();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y - 67.5 - bob);
+ }
+ ctx.restore();
+}
+
+function drawPineTree(x, y){
+ ctx.save();
+ ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(x, y+22, 28, 11, 0, 0, Math.PI*2); ctx.fill();
+ ctx.fillStyle = '#78350f'; ctx.fillRect(x-9, y-4, 18, 24);
+ const layers = [[0, -18, 36, '#14532d'], [0, -34, 30, '#166534'], [0, -50, 22, '#15803d']];
+ layers.forEach(([ox, oy, rad, col]) => {
+  ctx.fillStyle = col; ctx.strokeStyle = '#052e16'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(x+ox, y+oy-rad); ctx.lineTo(x+ox-rad, y+oy+14); ctx.lineTo(x+ox+rad, y+oy+14); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+ });
+ ctx.restore();
+}
+
+function drawLandmark(z){
+ const { id, cx, cy, doorX, doorY } = z;
+ const j = jobs[id];
+ ctx.save();
+ ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.beginPath(); ctx.roundRect(cx-135, cy-85, 270, 200, 22); ctx.fill();
+
+ switch(id){
+  case 12: // Pilot
+   ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.roundRect(cx-150, cy-90, 300, 195, 18); ctx.fill();
+   ctx.strokeStyle = '#facc15'; ctx.setLineDash([12,10]); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx-130, cy+65); ctx.lineTo(cx+130, cy+65); ctx.stroke(); ctx.setLineDash([]);
+   ctx.fillStyle = '#e2e8f0'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.moveTo(cx-135, cy+10); ctx.lineTo(cx+135, cy+10); ctx.lineTo(cx+95, cy-35); ctx.lineTo(cx-95, cy-35); ctx.closePath(); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(cx-42, cy-95, 84, 185, 40); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#0284c7'; ctx.beginPath(); ctx.roundRect(cx-28, cy+32, 56, 26, 12); ctx.fill();
+   ctx.fillStyle = '#0284c7'; ctx.fillRect(cx-95, cy+8, 24, 30); ctx.fillRect(cx+71, cy+8, 24, 30);
+   break;
+  case 1: // Soccer Player
+   ctx.fillStyle = '#16a34a'; ctx.strokeStyle = '#14532d'; ctx.lineWidth = 6;
+   ctx.beginPath(); ctx.roundRect(cx-140, cy-90, 280, 195, 20); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#22c55e'; for(let s=-110; s<=90; s+=50) ctx.fillRect(cx+s, cy-84, 25, 183);
+   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.strokeRect(cx-120, cy-74, 240, 165);
+   ctx.beginPath(); ctx.arc(cx, cy+8, 34, 0, Math.PI*2); ctx.stroke();
+   ctx.fillStyle = '#ffffff'; ctx.fillRect(cx-45, cy-88, 90, 16);
+   break;
+  case 2: // Teacher
+   ctx.fillStyle = '#ea580c'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-125, cy-55, 250, 155, 8); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#9a3412'; ctx.beginPath(); ctx.moveTo(cx-140, cy-50); ctx.lineTo(cx, cy-115); ctx.lineTo(cx+140, cy-50); ctx.closePath(); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.arc(cx, cy-78, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   ctx.beginPath(); ctx.moveTo(cx, cy-78); ctx.lineTo(cx, cy-90); ctx.lineTo(cx+10, cy-78); ctx.stroke();
+   ctx.fillStyle = '#bae6fd'; [-85,-45,45,85].forEach(wx => { ctx.fillRect(cx+wx-14, cy-25, 28, 36); ctx.strokeRect(cx+wx-14, cy-25, 28, 36); });
+   break;
+  case 9: // Astronaut
+   ctx.fillStyle = '#475569'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-130, cy-35, 260, 135, 12); ctx.fill(); ctx.stroke();
+   ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 4; ctx.strokeRect(cx-75, cy-105, 36, 175);
+   ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-28, cy-110, 56, 175, 28); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(cx-28, cy-85); ctx.lineTo(cx, cy-130); ctx.lineTo(cx+28, cy-85); ctx.closePath(); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(cx, cy-40, 14, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   break;
+  case 5: // Doctor
+   ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-120, cy-75, 240, 175, 10); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#0284c7'; ctx.fillRect(cx-120, cy-75, 240, 28);
+   ctx.fillStyle = '#ef4444'; ctx.fillRect(cx-10, cy-42, 20, 52); ctx.fillRect(cx-26, cy-26, 52, 20);
+   ctx.fillStyle = '#bae6fd'; [-75, 75].forEach(wx => { ctx.fillRect(cx+wx-18, cy-25, 36, 55); ctx.strokeRect(cx+wx-18, cy-25, 36, 55); });
+   break;
+  case 10: // Police
+   ctx.fillStyle = '#1e3a8a'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-125, cy-70, 250, 170, 10); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#3b82f6'; ctx.fillRect(cx-115, cy-55, 230, 30);
+   ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(cx, cy-40, 22, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   break;
+  case 6: // Chef
+   ctx.fillStyle = '#ffedd5'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-120, cy-55, 240, 155, 10); ctx.fill(); ctx.stroke();
+   for(let k=0; k<8; k++){ ctx.fillStyle = k%2===0 ? '#dc2626' : '#ffffff'; ctx.fillRect(cx-120+k*30, cy-65, 30, 38); ctx.strokeRect(cx-120+k*30, cy-65, 30, 38); }
+   break;
+  default:
+   ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-120, cy-55, 240, 155, 14); ctx.fill(); ctx.stroke();
+   ctx.save();
+   ctx.beginPath(); ctx.roundRect(cx-128, cy-82, 256, 52, 16); ctx.clip();
+   const baseCol = j.shirt === '#ffffff' ? '#0d9488' : j.shirt;
+   ctx.fillStyle = baseCol; ctx.fillRect(cx-128, cy-82, 256, 52);
+   ctx.fillStyle = 'rgba(255,255,255,0.25)';
+   for(let rx=cx-128; rx<cx+128; rx+=32) ctx.fillRect(rx, cy-82, 16, 52);
+   ctx.restore();
+   ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(cx-128, cy-82, 256, 52, 16); ctx.stroke();
+   ctx.fillStyle = '#bae6fd';
+   ctx.fillRect(cx-88, cy-10, 48, 48); ctx.strokeRect(cx-88, cy-10, 48, 48);
+   ctx.fillRect(cx+40, cy-10, 48, 48); ctx.strokeRect(cx+40, cy-10, 48, 48);
+   ctx.fillStyle = '#166534'; ctx.beginPath(); ctx.arc(cx-105, cy+85, 16, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#fbbf24'; ctx.fillRect(cx-117, cy+90, 24, 18); ctx.strokeRect(cx-117, cy+90, 24, 18);
+   break;
+ }
+
+ ctx.fillStyle = '#78350f'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5;
+ ctx.beginPath(); ctx.roundRect(doorX-24, cy+42, 48, 58, 6); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.roundRect(doorX-34, doorY-8, 68, 22, 8); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.roundRect(cx-95, cy-122, 190, 34, 10); ctx.fill();
+ ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+ ctx.fillStyle = '#ffffff'; ctx.font = '800 15px "Pretendard", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+ ctx.fillText(`${j.emoji} ${j.name}`, cx, cy-105);
+
+ if(done.has(id)){ ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(cx+105, cy-105, 15, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#ffffff'; ctx.font = '900 15px sans-serif'; ctx.fillText('✓', cx+105, cy-104); }
+ ctx.restore();
+}
+
+function renderHub(){
+ ctx.fillStyle = '#86efac'; ctx.fillRect(0, 0, HUB_W, HUB_H);
+ ctx.fillStyle = '#4ade80';
+ for(let gy=0; gy<HUB_H; gy+=100) for(let gx=0; gx<HUB_W; gx+=100) if((gx/100 + gy/100) % 2 === 0) ctx.fillRect(gx, gy, 100, 100);
+
+ ctx.fillStyle = '#38bdf8'; ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 10;
+ ctx.beginPath(); ctx.roundRect(70, 560, 220, 340, 40); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = '#fde68a';
+ [390, 910, 1430].forEach(ry => ctx.fillRect(140, ry, HUB_W-280, 74));
+ ctx.fillRect(1210, 150, 84, HUB_H-220);
+
+ const flowers = [[480,480],[510,495],[980,480],[1460,480],[480,1000],[1460,1000],[980,1000]];
+ flowers.forEach(([fx,fy]) => {
+  for(let k=0; k<5; k++){ ctx.fillStyle = k%2===0 ? '#f43f5e' : '#facc15'; ctx.beginPath(); ctx.arc(fx+k*18, fy+(k%2)*12, 6, 0, Math.PI*2); ctx.fill(); }
+ });
+
+ zones.forEach(z => drawLandmark(z));
+ for(let tx=80; tx<HUB_W; tx+=150){ drawPineTree(tx, 60); drawPineTree(tx, HUB_H-40); }
+
+ drawChibi(player.x, player.y, { shirt:'#2563eb', hair:'#1e293b', hat:'studentCap', label:'Student (나)', isNpc:false, walk:player.walk });
+}
+
+function drawDesk25D(x, y, w=140, h=46, topCol='#f59e0b', edgeCol='#d97706'){
+ ctx.save();
+ ctx.fillStyle = '#94a3b8'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+ ctx.fillRect(x+8, y+18, 9, 38); ctx.strokeRect(x+8, y+18, 9, 38);
+ ctx.fillRect(x+w-17, y+18, 9, 38); ctx.strokeRect(x+w-17, y+18, 9, 38);
+ ctx.fillStyle = topCol; ctx.beginPath(); ctx.roundRect(x, y, w, 24, 5); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = edgeCol; ctx.fillRect(x+2, y+18, w-4, 7);
+ ctx.restore();
+}
+
+function drawBookshelf(x, y){
+ ctx.save();
+ ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 2.5;
+ ctx.fillRect(x, y, 88, 116); ctx.strokeRect(x, y, 88, 116);
+ const cols = ['#ef4444','#3b82f6','#10b981','#f59e0b','#8b5cf6'];
+ for(let r=0; r<3; r++){
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(x+4, y+25+r*25, 80, 4);
+  for(let b=0; b<6; b++){ ctx.fillStyle = cols[(r+b)%cols.length]; ctx.fillRect(x+7+b*12, y+6+r*25, 9, 18); }
+ }
+ ctx.fillStyle = '#f1f5f9'; ctx.fillRect(x+4, y+85, 80, 26); ctx.strokeRect(x+4, y+85, 40, 26); ctx.strokeRect(x+44, y+85, 40, 26);
+ ctx.restore();
+}
+
+function renderRoom(){
+ const j = jobs[active];
+ ctx.save();
+
+ switch(active){
+  case 0: { // YouTuber Studio
+   ctx.fillStyle = '#94a3b8'; ctx.fillRect(0, 120, ROOM_W, ROOM_H-120);
+   ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 0, ROOM_W, 120);
+   ctx.fillStyle = '#22c55e'; ctx.strokeStyle = '#15803d'; ctx.lineWidth = 4;
+   ctx.fillRect(200, 58, 520, 175); ctx.strokeRect(200, 58, 520, 175);
+   ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2;
+   for(let k=0; k<5; k++){ ctx.fillRect(32+k*33, 55, 33, 255+k*10); ctx.strokeRect(32+k*33, 55, 33, 255+k*10); }
+   ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#334155';
+   for(let k=0; k<5; k++){ ctx.fillRect(720+k*33, 55, 33, 290-k*8); ctx.strokeRect(720+k*33, 55, 33, 290-k*8); }
+   ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4;
+   ctx.beginPath(); ctx.moveTo(110, 20); ctx.lineTo(810, 20); ctx.moveTo(150, 46); ctx.lineTo(770, 46); ctx.stroke();
+   [190, 360, 540, 710].forEach(lx => {
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(lx-25, 10, 50, 20);
+    ctx.fillStyle = '#fef08a'; ctx.fillRect(lx-19, 23, 38, 5);
+    ctx.fillStyle = '#1e293b'; ctx.fillRect(lx-22, 38, 44, 16);
+    ctx.fillStyle = '#bae6fd'; ctx.fillRect(lx-16, 48, 32, 4);
+   });
+   drawDesk25D(290, 235, 340, 48, '#fbbf24', '#d97706');
+   ctx.fillStyle = '#1e293b'; ctx.fillRect(330, 206, 60, 38); ctx.fillStyle = '#38bdf8'; ctx.fillRect(335, 211, 50, 27);
+   ctx.fillStyle = '#0f172a'; ctx.fillRect(440, 198, 80, 44); ctx.fillStyle = '#a855f7'; ctx.fillRect(445, 203, 70, 32);
+   ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(565, 216, 9, 0, Math.PI*2); ctx.fill();
+   const drawCam = (cx, cy, big=false) => {
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx-25, cy+55); ctx.moveTo(cx, cy); ctx.lineTo(cx+25, cy+55); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy+60); ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    if(big){
+     ctx.beginPath(); ctx.moveTo(cx-44, cy-36); ctx.lineTo(cx+44, cy-36); ctx.lineTo(cx+52, cy+6); ctx.lineTo(cx-52, cy+6); ctx.closePath(); ctx.fill();
+     ctx.fillStyle = '#22c55e'; ctx.fillRect(cx-16, cy-20, 15, 11);
+    } else ctx.fillRect(cx-22, cy-22, 44, 26);
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(cx+16, cy-15, 3.8 + Math.sin(time*8)*1.2, 0, Math.PI*2); ctx.fill();
+   };
+   drawCam(460, 365, true);
+   drawCam(175, 340, false);
+   break;
+  }
+
+  case 1: { // Soccer Stadium
+   ctx.fillStyle = '#16a34a'; ctx.fillRect(0, 0, ROOM_W, ROOM_H);
+   for(let x=0; x<ROOM_W; x+=115){ ctx.fillStyle = '#15803d'; ctx.fillRect(x, 0, 58, ROOM_H); }
+   ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 0, ROOM_W, 105);
+   for(let fx=35; fx<ROOM_W; fx+=30){ ctx.fillStyle = fx%60===0 ? '#facc15' : '#ef4444'; ctx.beginPath(); ctx.arc(fx, 50 + (fx%3)*16, 8.5, 0, Math.PI*2); ctx.fill(); }
+   ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.strokeRect(55, 120, ROOM_W-110, ROOM_H-150);
+   ctx.beginPath(); ctx.arc(ROOM_W/2, 310, 65, 0, Math.PI*2); ctx.stroke();
+   ctx.fillStyle = '#ffffff'; ctx.fillRect(345, 102, 230, 20);
+   ctx.beginPath(); ctx.arc(460 + Math.sin(time*4)*85, 255, 14, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   break;
+  }
+
+  case 2: { // Teacher Classroom
+   ctx.fillStyle = '#9ca3af'; ctx.fillRect(0, 118, ROOM_W, ROOM_H-118);
+   ctx.fillStyle = '#d9f99d'; ctx.fillRect(0, 0, ROOM_W, 118);
+   ctx.strokeStyle = '#65a30d'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(0,118); ctx.lineTo(ROOM_W,118); ctx.stroke();
+   drawBookshelf(65, 8); drawBookshelf(ROOM_W-153, 8);
+   ctx.fillStyle = '#15803d'; ctx.strokeStyle = '#b45309'; ctx.lineWidth = 5;
+   ctx.fillRect(215, 14, 490, 86); ctx.strokeRect(215, 14, 490, 86);
+   ctx.fillStyle = '#ffffff'; ctx.font = '800 21px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Welcome! What do you want to be?', 460, 57);
+   ctx.fillStyle = '#f59e0b'; ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2.5; ctx.fillRect(330, 122, 68, 44); ctx.strokeRect(330, 122, 68, 44);
+   const stHairs = ['#451a03','#1e293b','#b45309','#78350f','#0f172a','#9a3412'];
+   const stShirts = ['#ef4444','#3b82f6','#10b981','#a855f7','#ec4899','#06b6d4'];
+   for(let r=0; r<2; r++){
+    for(let c=0; c<3; c++){
+     const dx = 135 + c*240, dy = 265 + r*105;
+     drawDesk25D(dx, dy, 140, 44);
+     drawChibi(dx+70, dy+25, {shirt:stShirts[r*3+c], hair:stHairs[r*3+c], isNpc:true, sit:true});
+    }
+   }
+   break;
+  }
+
+  case 3: { // Violinist Concert Hall
+   ctx.fillStyle = '#4c0519'; ctx.fillRect(0, 0, ROOM_W, ROOM_H);
+   ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#facc15'; ctx.lineWidth = 5;
+   ctx.beginPath(); ctx.roundRect(100, 100, 720, 185, 18); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#9f1239'; ctx.fillRect(0, 0, ROOM_W, 86);
+   for(let cx=35; cx<ROOM_W; cx+=115){ ctx.beginPath(); ctx.arc(cx+58, 86, 58, 0, Math.PI); ctx.fill(); }
+   ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2;
+   ctx.beginPath(); ctx.roundRect(195, 140, 140, 88, 22); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#ffffff'; ctx.fillRect(215, 212, 90, 11);
+   ctx.fillStyle = '#f8fafc'; ctx.fillRect(445, 220, 34, 24);
+   for(let c=0; c<3; c++){
+    ctx.fillStyle = '#be123c'; ctx.strokeStyle = '#fda4af'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(155+c*230, 340, 140, 38, 9); ctx.fill(); ctx.stroke();
+   }
+   break;
+  }
+
+  case 4: { // Scientist Lab
+   ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+   for(let x=35; x<ROOM_W-35; x+=58) for(let y=120; y<ROOM_H-35; y+=58) ctx.strokeRect(x, y, 58, 58);
+   ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, ROOM_W, 115);
+   ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 3;
+   ctx.fillRect(240, 18, 440, 78); ctx.strokeRect(240, 18, 440, 78);
+   ctx.fillStyle = '#38bdf8'; ctx.font = '800 19px monospace'; ctx.textAlign = 'center';
+   ctx.fillText('🧪 SCIENCE LAB : H₂O · CO₂ · DNA', 460, 58);
+   [50, 770].forEach(sx => {
+    ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 3;
+    ctx.fillRect(sx, 140, 100, 220); ctx.strokeRect(sx, 140, 100, 220);
+    ctx.fillStyle = '#bae6fd'; ctx.fillRect(sx+8, 155, 84, 140);
+    [185, 232, 280].forEach((sy, idx) => {
+     ctx.fillStyle = ['#10b981','#f43f5e','#8b5cf6'][idx];
+     ctx.fillRect(sx+18, sy-18, 17, 18); ctx.fillRect(sx+50, sy-22, 20, 22);
+    });
+   });
+   drawDesk25D(270, 235, 380, 50, '#f8fafc', '#cbd5e1');
+   ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(335, 235, 14, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#f43f5e'; ctx.beginPath(); ctx.arc(380, 235, 12, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(540, 235, 15, 0, Math.PI*2); ctx.fill();
+   break;
+  }
+
+  case 5: { // Doctor Hospital
+   ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.fillStyle = '#e0f2fe'; ctx.fillRect(0, 0, ROOM_W, 115);
+   ctx.fillStyle = '#ef4444'; ctx.fillRect(448, 20, 24, 64); ctx.fillRect(428, 40, 64, 24);
+   [110, 660].forEach(bx => {
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3;
+    ctx.fillRect(bx, 195, 150, 185); ctx.strokeRect(bx, 195, 150, 185);
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(bx+8, 255, 134, 115);
+    drawChibi(bx+75, 232, {shirt:'#38bdf8', hair:'#78350f', isNpc:true, sit:true});
+    ctx.fillStyle = '#0f172a'; ctx.fillRect(bx+22, 142, 106, 38);
+    ctx.fillStyle = '#22c55e'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('❤️ 72 BPM ~~~~', bx+75, 164);
+   });
+   drawDesk25D(360, 235, 200, 46, '#ffffff', '#cbd5e1');
+   break;
+  }
+
+  case 6: { // Chef Gourmet Restaurant Kitchen
+   ctx.fillStyle = '#64748b'; ctx.fillRect(0, 125, ROOM_W, ROOM_H-125);
+   ctx.fillStyle = '#e2e8f0'; ctx.fillRect(0, 0, ROOM_W, 125);
+   ctx.fillStyle = '#2563eb'; ctx.fillRect(220, 55, 480, 115);
+   ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 1.5;
+   for(let tx=220; tx<700; tx+=24) for(let ty=55; ty<170; ty+=24) ctx.strokeRect(tx, ty, 24, 24);
+   ctx.fillStyle = '#94a3b8'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.moveTo(255, 12); ctx.lineTo(665, 12); ctx.lineTo(710, 72); ctx.lineTo(210, 72); ctx.closePath(); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#475569';
+   [280, 350, 480, 550, 615].forEach(vx => ctx.fillRect(vx, 28, 30, 30));
+   ctx.fillStyle = '#475569'; ctx.fillRect(220, 160, 480, 48);
+   ctx.fillStyle = '#cbd5e1'; ctx.fillRect(290, 126, 58, 38); ctx.fillRect(545, 130, 55, 34);
+   // 우측 5단 스테인리스 식기 선반
+   ctx.fillStyle = '#475569'; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3;
+   ctx.fillRect(740, 90, 140, 295); ctx.strokeRect(740, 90, 140, 295);
+   for(let sy=138; sy<=350; sy+=53){
+    ctx.fillStyle = '#94a3b8'; ctx.fillRect(744, sy, 132, 6);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(758, sy-24, 38, 22); ctx.fillRect(814, sy-20, 34, 18);
+   }
+   // 좌측 양념 선반
+   ctx.fillStyle = '#cbd5e1'; ctx.fillRect(45, 58, 135, 50); ctx.strokeRect(45, 58, 135, 50);
+   ctx.fillStyle = '#ef4444'; ctx.fillRect(64, 68, 18, 30); ctx.fillStyle = '#facc15'; ctx.fillRect(92, 72, 18, 26);
+   // 보조 셰프 2명
+   drawChibi(140, 240, {shirt:'#ffffff', hair:'#ea580c', hat:'chef', label:'Sous Chef', isNpc:true});
+   drawChibi(605, 220, {shirt:'#ffffff', hair:'#78350f', hat:'chef', label:'Line Cook', isNpc:true});
+   // 중앙 아일랜드 조리대
+   drawDesk25D(260, 255, 400, 50, '#e2e8f0', '#94a3b8');
+   ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(315, 265, 30, 14, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.ellipse(315, 265, 23, 10, 0, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#9a3412'; ctx.beginPath(); ctx.ellipse(315, 265, 16, 6.5, 0, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#d97706'; ctx.fillRect(385, 258, 68, 16); ctx.fillRect(515, 258, 70, 16);
+   ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(368, 266, 6.5, 0, Math.PI*2); ctx.arc(478, 266, 5.5, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#22c55e'; ctx.fillRect(528, 262, 30, 5);
+   break;
+  }
+
+  case 7: { // Game Developer Studio
+   ctx.fillStyle = '#d97706'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.strokeStyle = 'rgba(120,53,15,0.28)'; ctx.lineWidth = 2;
+   for(let y=125; y<ROOM_H; y+=26) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(ROOM_W, y); ctx.stroke(); }
+   ctx.fillStyle = '#b45309'; ctx.fillRect(0, 0, ROOM_W, 115);
+   for(let x=0; x<ROOM_W; x+=58) ctx.strokeRect(x, 0, 58, 115);
+   ctx.fillStyle = '#bae6fd'; ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4;
+   ctx.fillRect(75, 20, 170, 68); ctx.strokeRect(75, 20, 170, 68);
+   ctx.fillRect(650, 20, 170, 68); ctx.strokeRect(650, 20, 170, 68);
+   ctx.fillStyle = '#fde68a'; ctx.fillRect(295, 30, 145, 82); ctx.strokeRect(295, 30, 145, 82);
+   ctx.fillStyle = '#22c55e'; ctx.fillRect(375, 14, 45, 30);
+   ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(60, 175, 260, 155, 12); ctx.fill(); ctx.stroke();
+   ctx.beginPath(); ctx.roundRect(375, 210, 425, 210, 12); ctx.fill(); ctx.stroke();
+   drawChibi(135, 210, {shirt:'#64748b', hair:'#1e293b', label:'Planner', isNpc:true, sit:true});
+   drawDesk25D(85, 220, 185, 46, '#f8fafc', '#cbd5e1');
+   drawChibi(470, 235, {shirt:'#2563eb', hair:'#78350f', hat:'glasses', isNpc:true, sit:true});
+   drawChibi(675, 235, {shirt:'#ec4899', hair:'#f59e0b', isNpc:true, sit:true});
+   drawDesk25D(400, 250, 365, 54, '#f1f5f9', '#94a3b8');
+   drawDesk25D(400, 310, 365, 54, '#f1f5f9', '#94a3b8');
+   [435, 525, 615, 700].forEach((mx, idx) => {
+    ctx.fillStyle = '#e2e8f0'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+    ctx.fillRect(mx, 228 + (idx%2)*60, 54, 38); ctx.strokeRect(mx, 228 + (idx%2)*60, 54, 38);
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(mx+5, 233 + (idx%2)*60, 44, 26);
+   });
+   drawChibi(480, 358, {shirt:'#dc2626', hair:'#451a03', isNpc:true, sit:true});
+   drawChibi(685, 358, {shirt:'#1e293b', hair:'#b45309', isNpc:true, sit:true});
+   break;
+  }
+
+  case 8: { // Designer Atelier
+   ctx.fillStyle = '#fef3c7'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.fillStyle = '#fce7f3'; ctx.fillRect(0, 0, ROOM_W, 115);
+   ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#db2777'; ctx.lineWidth = 3;
+   ctx.fillRect(235, 16, 450, 82); ctx.strokeRect(235, 16, 450, 82);
+   ['#ef4444','#f97316','#facc15','#22c55e','#3b82f6','#a855f7','#ec4899'].forEach((col, idx) => {
+    ctx.fillStyle = col; ctx.fillRect(260 + idx*56, 30, 42, 52);
+   });
+   [90, 185].forEach((ex, idx) => {
+    ctx.strokeStyle = '#78350f'; ctx.lineWidth = 4.5;
+    ctx.beginPath(); ctx.moveTo(ex, 165); ctx.lineTo(ex-26, 295); ctx.moveTo(ex, 165); ctx.lineTo(ex+26, 295); ctx.stroke();
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3;
+    ctx.fillRect(ex-36, 182, 72, 60); ctx.strokeRect(ex-36, 182, 72, 60);
+    ctx.fillStyle = idx===0 ? '#f43f5e' : '#38bdf8'; ctx.beginPath(); ctx.arc(ex-7, 210, 15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(ex+13, 216, 11, 0, Math.PI*2); ctx.fill();
+   });
+   [730, 815].forEach((mx, idx) => {
+    ctx.fillStyle = '#475569'; ctx.fillRect(mx-3, 220, 6, 60);
+    ctx.fillStyle = idx===0 ? '#ec4899' : '#8b5cf6';
+    ctx.beginPath(); ctx.moveTo(mx-23, 245); ctx.lineTo(mx+23, 245); ctx.lineTo(mx+13, 185); ctx.lineTo(mx-13, 185); ctx.closePath(); ctx.fill(); ctx.stroke();
+   });
+   drawDesk25D(280, 250, 360, 52, '#ffffff', '#cbd5e1');
+   ctx.fillStyle = '#ec4899'; ctx.fillRect(310, 256, 78, 16);
+   ctx.fillStyle = '#38bdf8'; ctx.fillRect(408, 256, 86, 16);
+   ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.ellipse(565, 264, 24, 13, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   break;
+  }
+
+  case 9: { // Astronaut Space Station
+   ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.strokeStyle = '#334155'; ctx.lineWidth = 2;
+   for(let x=55; x<ROOM_W; x+=75) for(let y=125; y<ROOM_H; y+=75) ctx.strokeRect(x, y, 75, 75);
+   ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, ROOM_W, 115);
+   ctx.fillStyle = '#090d16'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4;
+   ctx.fillRect(190, 14, 540, 88); ctx.strokeRect(190, 14, 540, 88);
+   ctx.fillStyle = '#0284c7'; ctx.beginPath(); ctx.arc(460, 58, 38, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(448, 52, 16, 0, Math.PI*2); ctx.arc(476, 64, 13, 0, Math.PI*2); ctx.fill();
+   [65, 715].forEach(sx => {
+    ctx.fillStyle = '#475569'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 3;
+    ctx.fillRect(sx, 160, 140, 215); ctx.strokeRect(sx, 160, 140, 215);
+    ctx.fillStyle = '#38bdf8'; ctx.fillRect(sx+18, 182, 104, 42);
+    ctx.fillStyle = '#22c55e'; ctx.fillRect(sx+18, 240, 104, 32);
+   });
+   drawDesk25D(310, 245, 300, 48, '#334155', '#0f172a');
+   break;
+  }
+
+  case 10: { // Police Headquarters
+   ctx.fillStyle = '#cbd5e1'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 0, ROOM_W, 115);
+   ctx.fillStyle = '#ffffff'; ctx.font = '900 23px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🚓 METROPOLITAN POLICE STATION · 112', 460, 52);
+   ctx.fillStyle = '#475569'; ctx.fillRect(50, 120, 245, 165);
+   ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 4.5;
+   for(let bx=70; bx<=275; bx+=25){ ctx.beginPath(); ctx.moveTo(bx,120); ctx.lineTo(bx,285); ctx.stroke(); }
+   ctx.strokeRect(50, 120, 245, 165);
+   drawDesk25D(410, 230, 170, 48);
+   ctx.fillStyle = '#1e3a8a'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.roundRect(680, 200, 155, 205, 18); ctx.fill(); ctx.stroke();
+   ctx.fillStyle = '#ffffff'; ctx.fillRect(686, 258, 143, 82);
+   ctx.fillStyle = '#38bdf8'; ctx.fillRect(696, 222, 122, 35);
+   const sOn = Math.sin(time*12) > 0;
+   ctx.fillStyle = sOn ? '#ef4444' : '#3b82f6'; ctx.fillRect(712, 290, 42, 17);
+   ctx.fillStyle = !sOn ? '#ef4444' : '#3b82f6'; ctx.fillRect(754, 290, 42, 17);
+   break;
+  }
+
+  case 11: { // Veterinarian Clinic
+   ctx.fillStyle = '#ecfdf5'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.fillStyle = '#10b981'; ctx.fillRect(0, 0, ROOM_W, 115);
+   ctx.fillStyle = '#ffffff'; ctx.font = '900 23px sans-serif'; ctx.textAlign = 'center';
+   ctx.fillText('🐾 ANIMAL MEDICAL CENTER', 460, 55);
+   ctx.fillStyle = '#f59e0b'; ctx.strokeStyle = '#78350f'; ctx.lineWidth = 3;
+   ctx.fillRect(60, 140, 135, 215); ctx.strokeRect(60, 140, 135, 215);
+   drawBookshelf(730, 140);
+   drawDesk25D(310, 235, 300, 50, '#ffffff', '#cbd5e1');
+   ctx.fillStyle = '#38bdf8'; ctx.fillRect(340, 240, 240, 17);
+   ctx.fillStyle = '#d97706'; ctx.beginPath(); ctx.ellipse(460, 242, 26, 16, 0, 0, Math.PI*2); ctx.fill();
+   ctx.beginPath(); ctx.arc(488, 234, 14.5, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(494, 232, 3, 0, Math.PI*2); ctx.fill();
+   break;
+  }
+
+  case 12: { // Pilot Cockpit & Cabin
+   ctx.fillStyle = '#0ea5e9'; ctx.fillRect(0, 0, ROOM_W, ROOM_H);
+   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(130+(time*40)%660, 65, 35, 0, Math.PI*2); ctx.fill();
+   ctx.fillStyle = '#1e293b'; ctx.fillRect(38, 110, ROOM_W-76, ROOM_H-110);
+   ctx.fillStyle = '#334155'; ctx.fillRect(400, 110, 120, ROOM_H-110);
+   ctx.fillStyle = '#0f172a'; ctx.fillRect(165, 18, 590, 105);
+   ctx.fillStyle = '#38bdf8'; ctx.fillRect(205, 26, 230, 48); ctx.fillRect(485, 26, 230, 48);
+   [260, 360, 460, 560, 660].forEach(gx => { ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(gx, 96, 13, 0, Math.PI*2); ctx.fill(); });
+   for(let sy=250; sy<=380; sy+=75){ [82, 178, 650, 745].forEach(sx => { ctx.fillStyle = '#2563eb'; ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(sx, sy, 72, 50, 9); ctx.fill(); ctx.stroke(); }); }
+   break;
+  }
+
+  case 13: { // Photographer Studio
+   ctx.fillStyle = '#475569'; ctx.fillRect(0, 115, ROOM_W, ROOM_H-115);
+   ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 0, ROOM_W, 115);
+   ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 4;
+   ctx.beginPath(); ctx.roundRect(110, 130, 330, 250, 15); ctx.fill(); ctx.stroke();
+   drawChibi(275, 260, {shirt:'#ec4899', hair:'#f59e0b', label:'Model', isNpc:true});
+   [80, 470].forEach(lx => {
+    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(lx, 170); ctx.lineTo(lx, 295); ctx.stroke();
+    ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(lx, 170, 24, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+   });
+   ctx.fillStyle = '#0f172a'; ctx.fillRect(505, 240, 46, 40);
+   if(Math.sin(time*4) > 0.92){ ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillRect(110, 130, 330, 250); }
+   break;
+  }
+
+  case 14: { // Singer Concert Dome
+   ctx.fillStyle = '#2e1065'; ctx.fillRect(0, 0, ROOM_W, ROOM_H);
+   ctx.fillStyle = '#4c1d95'; ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 5;
+   ctx.beginPath(); ctx.roundRect(105, 100, 710, 185, 22); ctx.fill(); ctx.stroke();
+   [125, 720].forEach(sx => {
+    ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2;
+    ctx.fillRect(sx, 120, 66, 130); ctx.strokeRect(sx, 120, 66, 130);
+    ctx.fillStyle = '#334155'; ctx.beginPath(); ctx.arc(sx+33, 155, 20, 0, Math.PI*2); ctx.arc(sx+33, 210, 24, 0, Math.PI*2); ctx.fill();
+   });
+   ctx.fillStyle = 'rgba(250,204,21,0.22)';
+   ctx.beginPath(); ctx.arc(460, 200, 88 + Math.sin(time*6)*10, 0, Math.PI*2); ctx.fill();
+   for(let fx=150; fx<=770; fx+=76){
+    ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(fx, 390 + Math.sin(time*8+fx)*5, 6, 0, Math.PI*2); ctx.fill();
+   }
+   break;
+  }
+ }
+
+ // 하단 노란 출구 발판
+ ctx.fillStyle = '#fde047'; ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = 3;
+ ctx.beginPath(); ctx.roundRect(ROOM_W/2-86, ROOM_H-38, 172, 32, 9); ctx.fill(); ctx.stroke();
+ ctx.fillStyle = '#0f172a'; ctx.font = '900 13.5px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🚪 EXIT (광장으로 나가기)', ROOM_W/2, ROOM_H-20);
+ ctx.restore();
+
+ const list = [{ type:'npc', y:npc.y }, { type:'player', y:player.y }].sort((a,b) => a.y - b.y);
+ list.forEach(item => {
+  if(item.type === 'npc'){
+   drawChibi(npc.x, npc.y, { shirt:j.shirt, hair:j.hair, hat:j.hat, label:`${j.emoji} ${j.name}`, isNpc:true });
+   if(!$('#dialog').classList.contains('open')){
+    ctx.fillStyle = '#facc15'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; const by = npc.y - 100 + Math.sin(time*6)*4;
+    ctx.beginPath(); ctx.arc(npc.x, by, 13.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#0f172a'; ctx.font = '900 15.5px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', npc.x, by+2);
+   }
+  } else drawChibi(player.x, player.y, { shirt:'#2563eb', hair:'#1e293b', hat:'studentCap', label:'Student (나)', isNpc:false, walk:player.walk });
+ });
+}
+
+function update(dt){
+ time += dt; let mx = 0, my = 0;
+ if(keys.ArrowLeft || keys.a || keys.A) mx -= 1;
+ if(keys.ArrowRight || keys.d || keys.D) mx += 1;
+ if(keys.ArrowUp || keys.w || keys.W) my -= 1;
+ if(keys.ArrowDown || keys.s || keys.S) my += 1;
+ if(joyActive){ mx += joyX; my += joyY; }
+
+ const len = Math.hypot(mx, my);
+ if(len > 0.05){
+  if(len > 1){ mx /= len; my /= len; }
+  player.walk += dt * 13;
+  const nx = player.x + mx * player.speed * dt, ny = player.y + my * player.speed * dt;
+  const maxW = mode === 'hub' ? HUB_W - 40 : ROOM_W - 40;
+  const maxH = mode === 'hub' ? HUB_H - 40 : ROOM_H - 22;
+  if(!hitsCollider(nx, player.y)) player.x = Math.max(40, Math.min(maxW, nx));
+  if(!hitsCollider(player.x, ny)) player.y = Math.max(40, Math.min(maxH, ny));
+ } else player.walk = 0;
+
+ pendingAction = null; const btn = $('#actionBtn');
+ if(mode === 'hub'){
+  for(const z of zones){ if(Math.hypot(player.x - z.doorX, player.y - z.doorY) < 62){ pendingAction = { type: 'enter', id: z.id }; break; } }
+  if(pendingAction){ btn.style.display = 'block'; btn.textContent = `${jobs[pendingAction.id].emoji} ${jobs[pendingAction.id].name} 입장하기 (E)`; } else btn.style.display = 'none';
+ } else {
+  // 요리사 조리대나 책상 너머에서도 즉시 대화 버튼이 뜨도록 인식 반경 175px 적용!
+  const distExit = Math.hypot(player.x - ROOM_W/2, player.y - (ROOM_H - 20));
+  const distNpc = Math.hypot(player.x - npc.x, player.y - npc.y);
+  if(distExit < 65){
+   pendingAction = { type: 'exit' }; btn.style.display = 'block'; btn.textContent = '🚪 타운 광장으로 나가기 (E)';
+  } else if(distNpc < 175 && !$('#dialog').classList.contains('open')){
+   pendingAction = { type: 'talk' }; btn.style.display = 'block'; btn.textContent = `💬 ${jobs[active].name}와 대화하기 (E)`;
+  } else {
+   btn.style.display = 'none';
+  }
+ }
+}
+
+function triggerCurrentAction(){
+ if(!pendingAction) return;
+ if(pendingAction.type === 'enter') enterRoom(pendingAction.id);
+ else if(pendingAction.type === 'exit') exitToHub();
+ else if(pendingAction.type === 'talk') openDialog();
+}
+
+function render(){
+ const r = $('#viewport').getBoundingClientRect();
+ if(canvas.width !== r.width || canvas.height !== r.height){ canvas.width = r.width; canvas.height = r.height; }
+ ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save();
+ if(mode === 'hub'){
+  ctx.translate(-Math.max(0, Math.min(HUB_W - canvas.width, player.x - canvas.width/2)), -Math.max(0, Math.min(HUB_H - canvas.height, player.y - canvas.height/2))); renderHub();
+ } else {
+  let offX = (canvas.width - ROOM_W) / 2, offY = (canvas.height - ROOM_H) / 2;
+  if(ROOM_W > canvas.width) offX = -Math.max(0, Math.min(ROOM_W - canvas.width, player.x - canvas.width/2));
+  if(ROOM_H > canvas.height) offY = -Math.max(0, Math.min(ROOM_H - canvas.height, player.y - canvas.height/2));
+  ctx.translate(offX, offY); renderRoom();
+ }
+ ctx.restore();
+}
+
+function loop(now){ const dt = Math.min((now - lastTime)/1000, 0.05); lastTime = now; update(dt); render(); requestAnimationFrame(loop); }
+
+function openDialog(){ playBeep(600, 0.08); done.add(active); $('#dialog').classList.add('open'); const j = jobs[active]; $('#dTitle').textContent = `${j.emoji} ${j.name}`; $('#dPlace').textContent = `📍 ${j.place}`; $('#quizBox').classList.remove('open'); renderDialogLine(); updateProgressUI(); }
+function renderDialogLine(){ const l = jobs[active].lines[line]; $('#enText').textContent = l[0]; $('#koText').textContent = l[1]; $('#koText').hidden = !showKo; $('#koBtn').textContent = showKo ? '🇰🇷 뜻 숨기기' : '🇰🇷 뜻 보기'; $('#nextLineBtn').textContent = line === jobs[active].lines.length - 1 ? '⭐ 퀴즈 풀기!' : '다음 문장 →'; }
+function openQuiz(){
+ const j = jobs[active]; $('#quizBox').classList.add('open'); $('#quizQ').textContent = `Q. ${j.q}`; $('#quizMsg').textContent = ''; $('#quizOpts').innerHTML = '';
+ j.a.forEach((opt, idx) => {
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = opt;
+  b.onclick = () => {
+   if(quizDone) return;
+   if(idx === j.c){ playBeep(880, 0.15); quizDone = true; done.add(active); b.style.background = '#dcfce7'; b.style.borderColor = '#16a34a'; $('#quizMsg').style.color = '#15803d'; $('#quizMsg').textContent = '🎉 Excellent! 정답입니다!'; $('#nextLineBtn').textContent = '✓ 대화 마치기'; updateProgressUI(); }
+   else { playBeep(260, 0.15); $('#quizMsg').style.color = '#dc2626'; $('#quizMsg').textContent = '다시 한 번 생각해 보세요!'; }
+  }; $('#quizOpts').appendChild(b);
+ });
+}
+function updateProgressUI(){ $('#progressBadge').textContent = `${done.size} / 15 체험 완료`; document.querySelectorAll('[data-job]').forEach(b => b.classList.toggle('done', done.has(+b.dataset.job))); }
+
+$('#actionBtn').onclick = triggerCurrentAction;
+$('#townBtn').onclick = () => { if(mode === 'room') exitToHub(); else { player.x = 1250; player.y = 860; } };
+$('#soundBtn').onclick = () => { sound = !sound; $('#soundBtn').textContent = sound ? '🔇 소리 끄기' : '🔊 소리 켜기'; if(sound) playBeep(600, 0.08); };
+$('#closeDialogBtn').onclick = () => $('#dialog').classList.remove('open');
+$('#koBtn').onclick = () => { showKo = !showKo; renderDialogLine(); };
+$('#ttsBtn').onclick = () => { if('speechSynthesis' in window){ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(jobs[active].lines[line][0]); u.lang = 'en-US'; u.rate = 0.85; speechSynthesis.speak(u); } };
+$('#nextLineBtn').onclick = () => { if(quizDone){ $('#dialog').classList.remove('open'); return; } if(line < jobs[active].lines.length - 1){ line++; renderDialogLine(); } else openQuiz(); };
+$('#jobList').innerHTML = jobs.map((j,i) => `<button data-job="${i}">${j.emoji} ${j.name}</button>`).join('');
+$('#jobList').addEventListener('click', e => { const b = e.target.closest('[data-job]'); if(b) enterRoom(+b.dataset.job); });
+
+// 학생 배포용 단일 HTML 파일 다운로드 버튼
+$('#downloadBtn').onclick = () => {
+ const htmlContent = '<!doctype html>\n' + document.documentElement.outerHTML;
+ const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url; a.download = 'index.html';
+ document.body.appendChild(a); a.click(); a.remove();
+ URL.revokeObjectURL(url);
+};
+
+document.addEventListener('keydown', e => { if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault(); keys[e.key] = true; if(e.key.toLowerCase() === 'e') triggerCurrentAction(); if(e.key === 'Escape' && mode === 'room') exitToHub(); });
+document.addEventListener('keyup', e => keys[e.key] = false);
+
+const jZone = $('#joyZone'), jStick = $('#joyStick'); let jcx = 0, jcy = 0, maxR = 32;
+const moveJoy = (cx, cy) => { if(!joyActive) return; let dx = cx - jcx, dy = cy - jcy; const dist = Math.hypot(dx, dy); if(dist > maxR){ dx = (dx/dist)*maxR; dy = (dy/dist)*maxR; } jStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; joyX = dx / maxR; joyY = dy / maxR; };
+jZone.addEventListener('pointerdown', e => { e.preventDefault(); jZone.setPointerCapture(e.pointerId); joyActive = true; const r = jZone.getBoundingClientRect(); jcx = r.left + r.width/2; jcy = r.top + r.height/2; moveJoy(e.clientX, e.clientY); });
+jZone.addEventListener('pointermove', e => moveJoy(e.clientX, e.clientY));
+const endJoy = () => { joyActive = false; joyX = 0; joyY = 0; jStick.style.transform = 'translate(-50%,-50%)'; };
+jZone.addEventListener('pointerup', endJoy); jZone.addEventListener('pointercancel', endJoy);
+
+initHub(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
